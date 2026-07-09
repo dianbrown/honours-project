@@ -1,0 +1,15 @@
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\hex_bytes.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\hex_bytes.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\llrp_reader.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\llrp_reader.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\llrp_reader_l3.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\llrp_reader_l3.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\osdep_win32.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\osdep_win32.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\serial_reader.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\serial_reader.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\serial_reader_l3.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\serial_reader_l3.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\serial_transport_llrp.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\serial_transport_llrp.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\serial_transport_tcp_win32.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\serial_transport_tcp_win32.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\serial_transport_win32.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\serial_transport_win32.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\tmr_loadsave_configuration.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\tmr_loadsave_configuration.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\tmr_param.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\tmr_param.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\tmr_strerror.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\tmr_strerror.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\tmr_utils.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\tmr_utils.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\tm_reader.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\tm_reader.obj
+C:\Users\dianb\Desktop\attendanceTaker\c\src\api\tm_reader_async.c;C:\Users\dianb\Desktop\attendanceTaker\c\projVS2019\MercuryAPI\Release\tm_reader_async.obj

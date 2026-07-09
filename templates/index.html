@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attendance Kiosk</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <header class="card">
+      <h1>Attendance Kiosk</h1>
+      <p>Open from phone: <code>http://{{ local_ip }}:{{ port }}</code></p>
+    </header>
+
+    <section class="card form-grid">
+      <label>Reader URI
+        <input id="uri" value="{{ default_uri }}" />
+      </label>
+      <label>Antenna
+        <input id="antenna" type="number" min="1" value="{{ default_antenna }}" />
+      </label>
+      <label>Read Power (cdBm)
+        <input id="readPower" type="number" min="0" value="{{ default_power }}" />
+      </label>
+    </section>
+
+    <section class="card">
+      <div class="button-row">
+        <button id="startBtn" class="btn primary">Start Attendance</button>
+        <button id="pauseBtn" class="btn warning">Pause</button>
+        <button id="resumeBtn" class="btn primary">Resume</button>
+        <button id="stopBtn" class="btn danger">Stop</button>
+        <button id="exportBtn" class="btn">Export CSV</button>
+      </div>
+      <p id="statusLine">Status: idle</p>
+      <p id="countsLine">Total reads: 0 | Unique tags: 0</p>
+      <p id="exportLine"></p>
+    </section>
+
+    <section class="card">
+      <h2>Email Export</h2>
+      <div class="button-row">
+        <input id="emailInput" type="email" placeholder="name@example.com" />
+        <button id="emailBtn" class="btn">Send Email</button>
+      </div>
+      <small>Set SMTP env vars on Pi: ATTENDANCE_SMTP_HOST/PORT/USER/PASS/FROM</small>
+    </section>
+
+    <section class="card">
+      <h2>Live Tag Reads</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Host Timestamp</th>
+            <th>EPC</th>
+            <th>Antenna</th>
+            <th>Count</th>
+            <th>Reader Time</th>
+          </tr>
+        </thead>
+        <tbody id="tagBody"></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Reader Log</h2>
+      <pre id="logBox"></pre>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
