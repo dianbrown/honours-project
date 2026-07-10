@@ -512,7 +512,7 @@ class AttendanceController:
         self._reconnect_attempts += 1
         if self._reconnect_attempts > MAX_RECONNECT_ATTEMPTS:
             self._reader_status = "error"
-            self._log("Reader could not be recovered — session keeps its data; stop and export.")
+            self._log("Reader could not be recovered. The session keeps its data; stop and export.")
             return
         self._reader_status = "reconnecting"
         delay = min(15.0, float(2 ** (self._reconnect_attempts - 1)))

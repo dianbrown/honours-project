@@ -20,6 +20,7 @@ const exportPanel = $("exportPanel");
 const settingsDrawer = $("settingsDrawer");
 const toast = $("toast");
 const debugLog = $("debugLog");
+const homeClock = $("homeClock");
 
 let state = null;
 // Settings overrides applied to the next /api/start call.
@@ -31,8 +32,9 @@ let toastTimer = null;
 
 /* ---------- helpers ---------- */
 
-function showToast(message) {
+function showToast(message, kind) {
   toast.textContent = message;
+  toast.classList.toggle("ok", kind === "ok");
   toast.classList.remove("hidden");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.add("hidden"), 4000);
@@ -94,14 +96,21 @@ function renderPill() {
 }
 
 function renderHome() {
+  homeClock.textContent = new Date().toLocaleString([], {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   startBtn.disabled = !state.reader.detected;
   const last = state.last_session;
   exportBtn.disabled = !last;
   if (last) {
     const label = last.name || fmtDate(last.started_at);
-    exportCaption.textContent = `Last session: ${label} — ${last.attendee_count} scanned`;
+    exportCaption.textContent = `Last session: ${label} · ${last.attendee_count} scanned`;
   } else {
-    exportCaption.textContent = "No sessions yet — start one to enable export";
+    exportCaption.textContent = "No sessions yet. Start one to enable export.";
   }
 }
 
@@ -288,7 +297,7 @@ $("settingsApply").addEventListener("click", () => {
   overrides.read_power = $("cfgPower").value.trim();
   overrides.session_name = $("cfgSessionName").value.trim();
   settingsDrawer.classList.add("hidden");
-  showToast("Settings will apply to the next session.");
+  showToast("Settings will apply to the next session.", "ok");
 });
 
 settingsDrawer.addEventListener("click", (e) => {
@@ -332,7 +341,7 @@ armable($("exitBtn"), "Tap again to exit", async () => {
 armable($("clearBtn"), "Tap again to clear", async () => {
   try {
     const p = await postJson("/api/clear-history", {});
-    showToast(`Cleared ${p.removed_sessions} session(s) and all CSV exports.`);
+    showToast(`Cleared ${p.removed_sessions} session(s) and all CSV exports.`, "ok");
     renderedSession = "__cleared__"; // force the tag list to repaint next poll
     await poll();
   } catch (e) {
