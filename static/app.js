@@ -238,6 +238,10 @@ exportBtn.addEventListener("click", async () => {
   exportBtn.disabled = true;
   try {
     const p = await postJson("/api/export", {});
+    const s = p.session || {};
+    const parts = [`${s.attendee_count ?? 0} scanned`];
+    if (s.duration_text) parts.push(`session time ${s.duration_text}`);
+    $("exportMeta").textContent = parts.join(" · ");
     $("exportFile").textContent = p.filename;
     $("exportUrl").textContent = p.exports_page_url;
     const qrBox = $("qrBox");
@@ -289,6 +293,51 @@ $("settingsApply").addEventListener("click", () => {
 
 settingsDrawer.addEventListener("click", (e) => {
   if (e.target === settingsDrawer) settingsDrawer.classList.add("hidden");
+});
+
+/* Destructive buttons need two taps within 3 s to avoid accidents. */
+function armable(btn, armedLabel, action) {
+  const idleLabel = btn.textContent;
+  let armed = false;
+  let timer = null;
+  const disarm = () => {
+    armed = false;
+    btn.textContent = idleLabel;
+    btn.classList.remove("armed");
+  };
+  btn.addEventListener("click", async () => {
+    if (!armed) {
+      armed = true;
+      btn.textContent = armedLabel;
+      btn.classList.add("armed");
+      clearTimeout(timer);
+      timer = setTimeout(disarm, 3000);
+      return;
+    }
+    clearTimeout(timer);
+    disarm();
+    await action();
+  });
+}
+
+armable($("exitBtn"), "Tap again to exit", async () => {
+  try {
+    await postJson("/api/exit", {});
+    window.close(); // fallback for non-kiosk browsers during development
+  } catch (e) {
+    showToast(e.message);
+  }
+});
+
+armable($("clearBtn"), "Tap again to clear", async () => {
+  try {
+    const p = await postJson("/api/clear-history", {});
+    showToast(`Cleared ${p.removed_sessions} session(s) and all CSV exports.`);
+    renderedSession = "__cleared__"; // force the tag list to repaint next poll
+    await poll();
+  } catch (e) {
+    showToast(e.message);
+  }
 });
 
 /* ---------- boot ---------- */

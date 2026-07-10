@@ -54,6 +54,26 @@ def safe_filename(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("_") or "session"
 
 
+def duration_seconds(start: str, end: str) -> Optional[int]:
+    try:
+        delta = dt.datetime.fromisoformat(end) - dt.datetime.fromisoformat(start)
+        return max(0, int(delta.total_seconds()))
+    except Exception:
+        return None
+
+
+def duration_text(seconds: Optional[int]) -> str:
+    if seconds is None:
+        return ""
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    if h:
+        return f"{h}h {m:02d}m"
+    if m:
+        return f"{m}m {s:02d}s"
+    return f"{s}s"
+
+
 def local_ip() -> str:
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -239,6 +259,17 @@ class Storage:
                 " GROUP BY s.id ORDER BY s.started_at DESC LIMIT 1"
             ).fetchone()
         return dict(row) if row else None
+
+    def clear_finished(self) -> int:
+        """Delete all stopped sessions and their attendees. Running/paused stay."""
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM attendees WHERE session_id IN"
+                " (SELECT id FROM sessions WHERE status='stopped')"
+            )
+            cur = self._conn.execute("DELETE FROM sessions WHERE status='stopped'")
+            self._conn.commit()
+            return cur.rowcount
 
     def close(self) -> None:
         with self._lock:
@@ -553,6 +584,8 @@ class AttendanceController:
             new_session = not resuming
             if new_session:
                 sid = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+                if self._storage.session(sid) is not None:  # two starts within one second
+                    sid = dt.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                 self._session_id = sid
                 self._session_name = session_name.strip()
                 self._started_at = iso_now()
@@ -733,8 +766,56 @@ class AttendanceController:
             self._last_export_file = filename
         return path
 
+    def session_summary(self, session_id: Optional[str] = None) -> dict[str, Any]:
+        sid = self._export_target(session_id)
+        sess = self._storage.session(sid)
+        if sess is None:
+            raise RuntimeError(f"Unknown session: {sid}")
+        count = len(self._storage.attendees(sid))
+        end = sess["ended_at"] or iso_now()  # still running → elapsed so far
+        secs = duration_seconds(sess["started_at"], end)
+        return {
+            "id": sid,
+            "name": sess["name"],
+            "started_at": sess["started_at"],
+            "ended_at": sess["ended_at"],
+            "attendee_count": count,
+            "duration_seconds": secs,
+            "duration_text": duration_text(secs),
+        }
+
     def sessions(self) -> list[dict[str, Any]]:
-        return self._storage.sessions_with_counts()
+        rows = self._storage.sessions_with_counts()
+        for r in rows:
+            end = r["ended_at"] or (iso_now() if r["status"] in ("running", "paused") else "")
+            secs = duration_seconds(r["started_at"], end) if end else None
+            r["duration_seconds"] = secs
+            r["duration_text"] = duration_text(secs)
+        return rows
+
+    def clear_history(self) -> int:
+        """Delete all finished sessions and every exported CSV file."""
+        with self._lock:
+            if self._status == "stopped":
+                # the on-screen session is part of the history being cleared
+                self._status = "idle"
+                self._session_id = ""
+                self._session_name = ""
+                self._started_at = ""
+                self._ended_at = ""
+                self._seen = set()
+                self._tags = []
+            self._last_export_file = ""
+        removed = self._storage.clear_finished()
+        if self._export_dir.exists():
+            for f in self._export_dir.glob("*.csv"):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+        with self._lock:
+            self._log(f"History cleared ({removed} session(s) and all CSV exports).")
+        return removed
 
 
 def create_app(args: argparse.Namespace) -> Flask:
@@ -820,19 +901,45 @@ def create_app(args: argparse.Namespace) -> Flask:
     @app.post("/api/export")
     def api_export() -> Response:
         data = request.get_json(silent=True) or {}
-        path = controller.export_csv(session_id=(data.get("session_id") or None))
+        sid = data.get("session_id") or None
+        path = controller.export_csv(session_id=sid)
         return jsonify(
             {
                 "ok": True,
                 "filename": path.name,
                 "download_url": f"/downloads/{path.name}",
                 "exports_page_url": f"{export_base_url(args.port)}/exports",
+                "session": controller.session_summary(sid),
             }
         )
 
     @app.get("/api/sessions")
     def api_sessions() -> Response:
         return jsonify({"sessions": controller.sessions()})
+
+    @app.post("/api/clear-history")
+    def api_clear_history() -> Response:
+        # Destructive: kiosk-only, like /api/exit.
+        if request.remote_addr not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+            return jsonify({"ok": False, "error": "Clearing only works on the kiosk itself."}), 403
+        removed = controller.clear_history()
+        return jsonify({"ok": True, "removed_sessions": removed})
+
+    @app.post("/api/exit")
+    def api_exit() -> Response:
+        # Closes the kiosk browser. Local-only so nobody on the hotspot can do it.
+        if request.remote_addr not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+            return jsonify({"ok": False, "error": "Exit only works on the kiosk itself."}), 403
+
+        def _close_browser() -> None:
+            time.sleep(0.3)  # let the HTTP response reach the browser first
+            try:
+                subprocess.run(["pkill", "-f", "chromium.*--kiosk"], timeout=5)
+            except Exception:
+                pass
+
+        threading.Thread(target=_close_browser, daemon=True).start()
+        return jsonify({"ok": True})
 
     @app.get("/exports")
     def exports_page() -> str:

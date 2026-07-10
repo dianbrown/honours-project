@@ -304,6 +304,13 @@ body.kiosk {
 
 .drawer-subhead { font-size: 15px; color: var(--dim); margin-top: 8px; font-weight: 600; }
 
+.danger-outline { border-color: var(--danger); color: var(--danger); height: 56px; font-size: 17px; }
+.danger-outline.armed, .danger-outline.armed:active { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+.drawer-note { color: var(--dim); font-size: 13px; margin-top: -8px; }
+
+.export-meta { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+
 .debug-log {
   background: var(--bg);
   border: 1px solid var(--border);

@@ -32,4 +32,5 @@ fi
 
 exec "$BROWSER" --kiosk --noerrdialogs --disable-infobars \
   --disable-session-crashed-bubble --check-for-update-interval=31536000 \
+  --password-store=basic \
   "$URL"

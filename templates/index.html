@@ -70,6 +70,7 @@
   <div id="exportPanel" class="overlay hidden">
     <div class="modal-card export-card">
       <h2>Export ready</h2>
+      <p id="exportMeta" class="export-meta"></p>
       <p id="exportFile" class="mono dim"></p>
       <div class="export-columns">
         <ol class="steps">
@@ -107,6 +108,11 @@
       </div>
       <h3 class="drawer-subhead">Reader log</h3>
       <pre id="debugLog" class="debug-log"></pre>
+      <h3 class="drawer-subhead">Data</h3>
+      <button id="clearBtn" class="btn danger-outline">Clear session history</button>
+      <p class="drawer-note">Deletes all finished sessions and their CSV exports.</p>
+      <h3 class="drawer-subhead">Kiosk</h3>
+      <button id="exitBtn" class="btn danger-outline">Exit app</button>
     </aside>
   </div>
 

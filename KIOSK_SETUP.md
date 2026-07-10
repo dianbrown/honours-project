@@ -42,6 +42,9 @@ and double-click **Attendance Kiosk**.
 4. Back on Home, tap **Export** → shows the download instructions + QR code.
 5. On your phone: join Wi-Fi **AttendancePi** → open `http://10.42.0.1:8080/exports`
    (or scan the QR) → **Download** the session CSV.
+6. To leave the app: **Settings → Exit app** (tap twice) — closes the full-screen
+   browser and returns to the Pi desktop. The server keeps running in the background,
+   so clicking the desktop icon again reopens instantly.
 
 CSV columns: `session_id, session_name, epc, scanned_at`
 (+ `student_number, name` when a roster is present, see below).

@@ -230,6 +230,56 @@ def test_export_without_sessions_raises(controller):
         controller.export_csv()
 
 
+# ---------- history clearing & duration ----------
+
+def test_clear_history_removes_finished_sessions_and_csvs(controller, tmp_path):
+    controller.start(session_name="one")
+    controller._on_tag(tag("AAAA000000000000000000BB"))
+    controller.stop()
+    controller.export_csv()
+    assert list((tmp_path / "exports").glob("*.csv"))
+
+    removed = controller.clear_history()
+    assert removed == 1
+    assert list((tmp_path / "exports").glob("*.csv")) == []
+    snap = controller.snapshot()
+    assert snap["status"] == "idle"  # the cleared on-screen session resets too
+    assert snap["last_session"] is None
+    with pytest.raises(RuntimeError):
+        controller.export_csv()  # nothing left to export
+
+
+def test_clear_history_keeps_running_session(controller):
+    controller.start(session_name="old")
+    controller.stop()
+    controller.start(session_name="active")
+    controller._on_tag(tag("AAAA000000000000000000BB"))
+    removed = controller.clear_history()
+    assert removed == 1
+    snap = controller.snapshot()
+    assert snap["status"] == "running"
+    assert snap["scanned_count"] == 1
+
+
+def test_duration_helpers():
+    assert ak.duration_seconds("2026-07-10T09:00:00", "2026-07-10T09:45:30") == 2730
+    assert ak.duration_seconds("bad", "worse") is None
+    assert ak.duration_text(2730) == "45m 30s"
+    assert ak.duration_text(3661) == "1h 01m"
+    assert ak.duration_text(59) == "59s"
+    assert ak.duration_text(None) == ""
+
+
+def test_session_summary_has_duration(controller):
+    controller.start(session_name="lecture")
+    controller._on_tag(tag("AAAA000000000000000000BB"))
+    controller.stop()
+    summary = controller.session_summary()
+    assert summary["attendee_count"] == 1
+    assert summary["duration_seconds"] is not None
+    assert summary["duration_text"] != ""
+
+
 # ---------- misc ----------
 
 def test_safe_filename():

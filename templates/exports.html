@@ -19,6 +19,7 @@
           <div class="detail">
             {{ s.started_at[:16].replace("T", " ") }}
             {% if s.status != 'stopped' %} &middot; {{ s.status }}{% endif %}
+            {% if s.duration_text %} &middot; {{ s.duration_text }}{% endif %}
             &middot; <span class="count">{{ s.attendee_count }} scanned</span>
           </div>
         </div>
