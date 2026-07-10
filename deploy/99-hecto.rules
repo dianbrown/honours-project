@@ -1,0 +1,12 @@
+# Stable /dev/hecto symlink for the M7E Hecto breakout's USB-serial chip.
+# If your adapter is not matched below, find its IDs with `lsusb` (vendor:product)
+# and add a matching line, then: sudo udevadm control --reload-rules && replug.
+
+# CH340/CH341 (used on most SparkFun breakouts)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="hecto"
+# CH9102
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", SYMLINK+="hecto"
+# CP210x
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="hecto"
+# FTDI FT232
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", SYMLINK+="hecto"

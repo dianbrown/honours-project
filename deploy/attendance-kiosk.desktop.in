@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Attendance Kiosk
+Comment=UHF RFID attendance system (M7E Hecto)
+Exec=@APP_DIR@/launch-kiosk.sh
+Icon=@APP_DIR@/static/icon.png
+Terminal=false
+Categories=Education;Utility;

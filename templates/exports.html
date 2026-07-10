@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attendance exports</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="exports-page">
+  <div class="exports-wrap">
+    <h1>Attendance exports</h1>
+    <p class="sub">Download a session as CSV. Files open in Excel or Google Sheets.</p>
+
+    {% if sessions %}
+      {% for s in sessions %}
+      <div class="session-card">
+        <div class="meta">
+          <div class="title">{{ s.name or s.id }}</div>
+          <div class="detail">
+            {{ s.started_at[:16].replace("T", " ") }}
+            {% if s.status != 'stopped' %} &middot; {{ s.status }}{% endif %}
+            &middot; <span class="count">{{ s.attendee_count }} scanned</span>
+          </div>
+        </div>
+        <a class="dl-btn" href="/export/{{ s.id }}.csv">Download</a>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-exports">No sessions recorded yet.</div>
+    {% endif %}
+  </div>
+</body>
+</html>

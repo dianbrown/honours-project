@@ -1,0 +1,16 @@
+# runtime data
+data/
+exports/*.csv
+*.log
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# mercury api build artifacts
+c/src/api/*.o
+c/src/api/readasync
+c/src/api/lib*.a
+c/src/api/*.so

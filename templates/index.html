@@ -3,71 +3,106 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Attendance Kiosk</title>
+  <title>Attendance</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-  <main class="container">
-    <header class="card">
-      <h1>Attendance Kiosk</h1>
-      <p>Open from phone: <code>http://{{ local_ip }}:{{ port }}</code></p>
+<body class="kiosk">
+
+  <!-- HOME -->
+  <section id="screenHome" class="screen active">
+    <header class="topbar">
+      <div class="brand">Attendance</div>
+      <div id="readerPill" class="pill"><span class="dot"></span><span class="pill-text">Checking reader…</span></div>
     </header>
+    <main class="home-main">
+      <button id="startBtn" class="btn btn-primary btn-hero" disabled>Start</button>
+      <button id="exportBtn" class="btn btn-secondary btn-big" disabled>Export</button>
+      <p id="exportCaption" class="caption">No sessions yet</p>
+    </main>
+    <footer class="home-footer">
+      <button id="settingsLink" class="linklike">Settings</button>
+    </footer>
+  </section>
 
-    <section class="card form-grid">
-      <label>Reader URI
-        <input id="uri" value="{{ default_uri }}" />
-      </label>
-      <label>Antenna
-        <input id="antenna" type="number" min="1" value="{{ default_antenna }}" />
-      </label>
-      <label>Read Power (cdBm)
-        <input id="readPower" type="number" min="0" value="{{ default_power }}" />
-      </label>
-    </section>
-
-    <section class="card">
-      <div class="button-row">
-        <button id="startBtn" class="btn primary">Start Attendance</button>
-        <button id="pauseBtn" class="btn warning">Pause</button>
-        <button id="resumeBtn" class="btn primary">Resume</button>
-        <button id="stopBtn" class="btn danger">Stop</button>
-        <button id="exportBtn" class="btn">Export CSV</button>
+  <!-- LIVE -->
+  <section id="screenLive" class="screen">
+    <header class="topbar live-bar">
+      <div class="live-stats">
+        <span id="liveCount" class="live-count">0</span>
+        <span class="live-count-label">scanned</span>
+        <span id="liveTimer" class="live-timer">00:00</span>
       </div>
-      <p id="statusLine">Status: idle</p>
-      <p id="countsLine">Total reads: 0 | Unique tags: 0</p>
-      <p id="exportLine"></p>
-    </section>
-
-    <section class="card">
-      <h2>Email Export</h2>
-      <div class="button-row">
-        <input id="emailInput" type="email" placeholder="name@example.com" />
-        <button id="emailBtn" class="btn">Send Email</button>
+      <div class="live-actions">
+        <button id="pauseBtn" class="btn btn-secondary">Pause</button>
+        <button id="stopBtn" class="btn btn-danger">Stop</button>
       </div>
-      <small>Set SMTP env vars on Pi: ATTENDANCE_SMTP_HOST/PORT/USER/PASS/FROM</small>
-    </section>
+    </header>
+    <div id="pausedBanner" class="paused-banner hidden">Paused — scans are not being recorded</div>
+    <div class="list-wrap">
+      <ol id="tagList" class="tag-list" reversed></ol>
+      <div id="emptyHint" class="empty-hint">Waiting for the first scan…</div>
+    </div>
+  </section>
 
-    <section class="card">
-      <h2>Live Tag Reads</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Host Timestamp</th>
-            <th>EPC</th>
-            <th>Antenna</th>
-            <th>Count</th>
-            <th>Reader Time</th>
-          </tr>
-        </thead>
-        <tbody id="tagBody"></tbody>
-      </table>
-    </section>
+  <!-- Stop confirmation -->
+  <div id="stopConfirm" class="overlay hidden">
+    <div class="modal-card">
+      <h2>Stop this session?</h2>
+      <p class="modal-sub">Scanning ends and the attendance list is finalised.</p>
+      <div class="modal-actions">
+        <button id="stopCancel" class="btn btn-secondary">Keep going</button>
+        <button id="stopConfirmBtn" class="btn btn-danger">Stop</button>
+      </div>
+    </div>
+  </div>
 
-    <section class="card">
-      <h2>Reader Log</h2>
-      <pre id="logBox"></pre>
-    </section>
-  </main>
+  <!-- Export panel -->
+  <div id="exportPanel" class="overlay hidden">
+    <div class="modal-card export-card">
+      <h2>Export ready</h2>
+      <p id="exportFile" class="mono dim"></p>
+      <div class="export-columns">
+        <ol class="steps">
+          <li>Connect to Wi-Fi <strong>AttendancePi</strong></li>
+          <li>Open <span id="exportUrl" class="mono accent"></span></li>
+          <li>Download the CSV</li>
+        </ol>
+        <div id="qrBox" class="qr-box"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="exportClose" class="btn btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings drawer -->
+  <div id="settingsDrawer" class="overlay hidden">
+    <aside class="drawer">
+      <h2>Settings</h2>
+      <label class="field">Reader URI
+        <input id="cfgUri" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="field">Antenna
+        <input id="cfgAntenna" type="number" min="1" max="4">
+      </label>
+      <label class="field">Read power (cdBm)
+        <input id="cfgPower" type="number" min="0" max="2700" step="50">
+      </label>
+      <label class="field">Session name (optional)
+        <input id="cfgSessionName" autocomplete="off" placeholder="e.g. CSC311 Tuesday">
+      </label>
+      <div class="modal-actions">
+        <button id="settingsClose" class="btn btn-secondary">Close</button>
+        <button id="settingsApply" class="btn btn-primary">Apply</button>
+      </div>
+      <h3 class="drawer-subhead">Reader log</h3>
+      <pre id="debugLog" class="debug-log"></pre>
+    </aside>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/qrcode.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

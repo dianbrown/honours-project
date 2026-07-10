@@ -1,140 +1,297 @@
-const statusLine = document.getElementById("statusLine");
-const countsLine = document.getElementById("countsLine");
-const exportLine = document.getElementById("exportLine");
-const tagBody = document.getElementById("tagBody");
-const logBox = document.getElementById("logBox");
+"use strict";
 
-const uriEl = document.getElementById("uri");
-const antennaEl = document.getElementById("antenna");
-const readPowerEl = document.getElementById("readPower");
-const emailInput = document.getElementById("emailInput");
+const $ = (id) => document.getElementById(id);
 
-const startBtn = document.getElementById("startBtn");
-const pauseBtn = document.getElementById("pauseBtn");
-const resumeBtn = document.getElementById("resumeBtn");
-const stopBtn = document.getElementById("stopBtn");
-const exportBtn = document.getElementById("exportBtn");
-const emailBtn = document.getElementById("emailBtn");
+const screenHome = $("screenHome");
+const screenLive = $("screenLive");
+const readerPill = $("readerPill");
+const startBtn = $("startBtn");
+const exportBtn = $("exportBtn");
+const exportCaption = $("exportCaption");
+const liveCount = $("liveCount");
+const liveTimer = $("liveTimer");
+const pauseBtn = $("pauseBtn");
+const stopBtn = $("stopBtn");
+const pausedBanner = $("pausedBanner");
+const tagList = $("tagList");
+const emptyHint = $("emptyHint");
+const stopConfirm = $("stopConfirm");
+const exportPanel = $("exportPanel");
+const settingsDrawer = $("settingsDrawer");
+const toast = $("toast");
+const debugLog = $("debugLog");
 
-let lastExportFile = "";
+let state = null;
+// Settings overrides applied to the next /api/start call.
+const overrides = { uri: "", antenna: "", read_power: "", session_name: "" };
 
-function postJson(url, data) {
-  return fetch(url, {
+let renderedSession = "";
+let renderedCount = 0;
+let toastTimer = null;
+
+/* ---------- helpers ---------- */
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add("hidden"), 4000);
+}
+
+async function postJson(url, data) {
+  const r = await fetch(url, {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(data || {})
-  }).then(async (r) => {
-    const payload = await r.json().catch(() => ({}));
-    if (!r.ok || payload.ok === false) {
-      throw new Error(payload.error || `Request failed: ${r.status}`);
-    }
-    return payload;
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data || {}),
   });
+  const payload = await r.json().catch(() => ({}));
+  if (!r.ok || payload.ok === false) {
+    throw new Error(payload.error || `Request failed (${r.status})`);
+  }
+  return payload;
 }
 
-function renderTags(tags) {
-  tagBody.innerHTML = "";
-  for (const t of tags.slice().reverse()) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${t.host_timestamp || ""}</td>
-      <td>${t.epc || ""}</td>
-      <td>${t.antenna || ""}</td>
-      <td>${t.read_count || ""}</td>
-      <td>${t.reader_timestamp || ""}</td>
-    `;
-    tagBody.appendChild(tr);
+function fmtClock(totalSeconds) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(sec).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+}
+
+function setPill(kind, text) {
+  readerPill.className = `pill ${kind}`;
+  readerPill.querySelector(".pill-text").textContent = text;
+}
+
+/* ---------- rendering ---------- */
+
+function renderPill() {
+  const r = state.reader;
+  if (r.mock) {
+    setPill("ok", "Mock reader");
+  } else if (r.status === "reconnecting") {
+    setPill("warn", "Reader reconnecting…");
+  } else if (r.status === "error") {
+    setPill("bad", "Reader error");
+  } else if (r.detected) {
+    setPill("ok", "Reader connected");
+  } else {
+    setPill("bad", "Reader not found");
   }
 }
 
-function applyState(state) {
-  statusLine.textContent = `Status: ${state.status}`;
-  countsLine.textContent = `Total reads: ${state.tag_count} | Unique tags: ${state.unique_tag_count}`;
-
-  renderTags(state.tags || []);
-  for (const line of (state.new_logs || [])) {
-    logBox.textContent += `${line}\n`;
+function renderHome() {
+  startBtn.disabled = !state.reader.detected;
+  const last = state.last_session;
+  exportBtn.disabled = !last;
+  if (last) {
+    const label = last.name || fmtDate(last.started_at);
+    exportCaption.textContent = `Last session: ${label} — ${last.attendee_count} scanned`;
+  } else {
+    exportCaption.textContent = "No sessions yet — start one to enable export";
   }
-  logBox.scrollTop = logBox.scrollHeight;
+}
 
-  lastExportFile = state.last_export_file || "";
-  if (lastExportFile) {
-    exportLine.innerHTML = `Latest export: <a href="/downloads/${lastExportFile}" target="_blank">${lastExportFile}</a>`;
+function buildRow(tag, index, isNew) {
+  const li = document.createElement("li");
+  li.className = "tag-row" + (isNew ? " new" : "");
+
+  const num = document.createElement("span");
+  num.className = "row-num";
+  num.textContent = String(index);
+
+  const id = document.createElement("span");
+  id.className = "row-id";
+  if (tag.label) {
+    const label = document.createElement("span");
+    label.className = "row-label";
+    label.textContent = tag.label;
+    const epc = document.createElement("span");
+    epc.className = "row-epc mono dim";
+    epc.textContent = tag.epc;
+    id.append(label, epc);
+  } else {
+    const epc = document.createElement("span");
+    epc.className = "row-epc mono";
+    epc.textContent = tag.epc;
+    id.append(epc);
   }
 
-  const running = state.status === "running";
+  const time = document.createElement("span");
+  time.className = "row-time";
+  time.textContent = fmtTime(tag.scanned_at);
+
+  li.append(num, id, time);
+  return li;
+}
+
+function renderTags() {
+  if (state.session_id !== renderedSession) {
+    renderedSession = state.session_id;
+    renderedCount = 0;
+    tagList.innerHTML = "";
+  }
+  const tags = state.tags || [];
+  const firstRender = renderedCount === 0;
+  for (let i = renderedCount; i < tags.length; i++) {
+    // newest on top; skip the flash when (re)painting a whole existing session
+    tagList.prepend(buildRow(tags[i], i + 1, !firstRender));
+  }
+  renderedCount = tags.length;
+  emptyHint.classList.toggle("hidden", tags.length > 0);
+}
+
+function renderLive() {
   const paused = state.status === "paused";
-  const stopped = state.status === "stopped";
-
-  startBtn.disabled = running;
-  pauseBtn.disabled = !running;
-  resumeBtn.disabled = !paused;
-  stopBtn.disabled = !(running || paused);
-  exportBtn.disabled = !stopped;
+  liveCount.textContent = String(state.scanned_count);
+  pauseBtn.textContent = paused ? "Resume" : "Pause";
+  pausedBanner.classList.toggle("hidden", !paused);
+  screenLive.classList.toggle("paused", paused);
+  if (state.started_at) {
+    liveTimer.textContent = fmtClock((Date.now() - new Date(state.started_at)) / 1000);
+  }
+  renderTags();
 }
 
-async function refreshState() {
-  const r = await fetch("/api/state");
-  const state = await r.json();
-  applyState(state);
+function render() {
+  if (!state) return;
+  const live = state.status === "running" || state.status === "paused";
+  screenLive.classList.toggle("active", live);
+  screenHome.classList.toggle("active", !live);
+  renderPill();
+  if (live) renderLive();
+  else renderHome();
+  if (!settingsDrawer.classList.contains("hidden")) {
+    debugLog.textContent = (state.debug_lines || []).join("\n");
+  }
 }
+
+async function poll() {
+  try {
+    const r = await fetch("/api/state");
+    if (!r.ok) throw new Error(`state ${r.status}`);
+    state = await r.json();
+    render();
+  } catch {
+    setPill("bad", "App not responding");
+  }
+}
+
+/* ---------- actions ---------- */
 
 startBtn.addEventListener("click", async () => {
+  startBtn.disabled = true;
   try {
     await postJson("/api/start", {
-      uri: uriEl.value.trim(),
-      antenna: Number(antennaEl.value),
-      read_power: Number(readPowerEl.value),
+      uri: overrides.uri,
+      antenna: overrides.antenna,
+      read_power: overrides.read_power,
+      session_name: overrides.session_name,
     });
-    await refreshState();
-  } catch (e) { alert(e.message); }
+    await poll();
+  } catch (e) {
+    showToast(e.message);
+    startBtn.disabled = false;
+  }
 });
 
 pauseBtn.addEventListener("click", async () => {
   try {
-    await postJson("/api/pause");
-    await refreshState();
-  } catch (e) { alert(e.message); }
+    if (state && state.status === "paused") {
+      await postJson("/api/start", {});
+    } else {
+      await postJson("/api/pause", {});
+    }
+    await poll();
+  } catch (e) {
+    showToast(e.message);
+  }
 });
 
-resumeBtn.addEventListener("click", async () => {
-  try {
-    await postJson("/api/start", {
-      uri: uriEl.value.trim(),
-      antenna: Number(antennaEl.value),
-      read_power: Number(readPowerEl.value),
-    });
-    await refreshState();
-  } catch (e) { alert(e.message); }
-});
+stopBtn.addEventListener("click", () => stopConfirm.classList.remove("hidden"));
+$("stopCancel").addEventListener("click", () => stopConfirm.classList.add("hidden"));
 
-stopBtn.addEventListener("click", async () => {
+$("stopConfirmBtn").addEventListener("click", async () => {
+  stopConfirm.classList.add("hidden");
   try {
-    await postJson("/api/stop");
-    await refreshState();
-  } catch (e) { alert(e.message); }
+    await postJson("/api/stop", {});
+    await poll();
+  } catch (e) {
+    showToast(e.message);
+  }
 });
 
 exportBtn.addEventListener("click", async () => {
+  exportBtn.disabled = true;
   try {
-    const p = await postJson("/api/export");
-    lastExportFile = p.filename;
-    exportLine.innerHTML = `Latest export: <a href="${p.download_url}" target="_blank">${p.filename}</a>`;
-    await refreshState();
-  } catch (e) { alert(e.message); }
-});
-
-emailBtn.addEventListener("click", async () => {
-  const to = emailInput.value.trim();
-  if (!to) {
-    alert("Enter recipient email.");
-    return;
+    const p = await postJson("/api/export", {});
+    $("exportFile").textContent = p.filename;
+    $("exportUrl").textContent = p.exports_page_url;
+    const qrBox = $("qrBox");
+    qrBox.innerHTML = "";
+    if (window.qrcode) {
+      try {
+        const qr = window.qrcode(0, "M");
+        qr.addData(p.exports_page_url);
+        qr.make();
+        qrBox.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0 });
+      } catch {
+        /* URL too long for auto type — panel still shows the address in text */
+      }
+    }
+    exportPanel.classList.remove("hidden");
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    exportBtn.disabled = false;
+    render();
   }
-  try {
-    await postJson("/api/email", {to_email: to, filename: lastExportFile});
-    alert("Email sent.");
-  } catch (e) { alert(e.message); }
 });
 
-refreshState();
-setInterval(refreshState, 1000);
+$("exportClose").addEventListener("click", () => exportPanel.classList.add("hidden"));
+
+/* ---------- settings ---------- */
+
+$("settingsLink").addEventListener("click", () => {
+  if (state) {
+    $("cfgUri").value = overrides.uri || state.config.uri;
+    $("cfgAntenna").value = overrides.antenna || state.config.antenna;
+    $("cfgPower").value = overrides.read_power || state.config.read_power;
+    $("cfgSessionName").value = overrides.session_name;
+    debugLog.textContent = (state.debug_lines || []).join("\n");
+  }
+  settingsDrawer.classList.remove("hidden");
+});
+
+$("settingsClose").addEventListener("click", () => settingsDrawer.classList.add("hidden"));
+
+$("settingsApply").addEventListener("click", () => {
+  overrides.uri = $("cfgUri").value.trim();
+  overrides.antenna = $("cfgAntenna").value.trim();
+  overrides.read_power = $("cfgPower").value.trim();
+  overrides.session_name = $("cfgSessionName").value.trim();
+  settingsDrawer.classList.add("hidden");
+  showToast("Settings will apply to the next session.");
+});
+
+settingsDrawer.addEventListener("click", (e) => {
+  if (e.target === settingsDrawer) settingsDrawer.classList.add("hidden");
+});
+
+/* ---------- boot ---------- */
+
+poll();
+setInterval(poll, 1000);

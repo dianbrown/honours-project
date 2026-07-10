@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+    [switch]$Mock,
     [string]$BindHost = "0.0.0.0",
     [int]$Port = 8080,
     [string]$Uri = "tmr:///COM3",
@@ -9,6 +10,15 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+python -c "import flask" | Out-Null
+
+if ($Mock) {
+    Write-Host "Starting kiosk server in MOCK mode (no hardware)..."
+    Write-Host "URL: http://localhost:$Port`n"
+    python attendance_kiosk.py --host $BindHost --port $Port --mock
+    exit $LASTEXITCODE
+}
 
 if (-not $ReadAsyncPath) {
     $candidates = @(
@@ -25,7 +35,7 @@ if (-not $ReadAsyncPath) {
 }
 
 if (-not $ReadAsyncPath) {
-    throw "readasync executable not found. Build it first with run-hecto-live.cmd."
+    throw "readasync executable not found. Build it first, or run with -Mock for development."
 }
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -38,13 +48,9 @@ if (Test-Path $readAsyncDir) {
     $env:PATH = "$readAsyncDir;$env:PATH"
 }
 
-python -c "import flask" | Out-Null
-
 Write-Host "Starting kiosk server..."
 Write-Host "URL: http://localhost:$Port"
 Write-Host "URI: $Uri"
-Write-Host "Antenna: $Antenna"
-Write-Host "Read power: $ReadPower cdBm"
 Write-Host "readasync: $ReadAsyncPath"
 Write-Host "Press Ctrl+C to stop.`n"
 

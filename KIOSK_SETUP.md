@@ -1,83 +1,106 @@
-# Attendance Kiosk Setup (Raspberry Pi 5)
+# Attendance Kiosk — Raspberry Pi Setup
 
-This app provides:
-- Touchscreen UI with `Start Attendance`, `Pause`, `Stop`, `Export CSV`
-- Live tag reads from M7E Hecto (`readasync` backend)
-- CSV download over local web server (phone-friendly)
-- Optional email sending of exported CSV
+UHF RFID attendance system: SparkFun **M7E Hecto** + UHF antenna → **Raspberry Pi 5** →
+**Touch Display 2** kiosk UI. The lecturer taps **Start**, students scan (each tag is
+recorded **once**), the lecturer taps **Stop**, then **Export** — and downloads the CSV
+from a phone/laptop over the Pi's own Wi-Fi hotspot. No campus network needed.
 
-## 1) Install dependencies
+## Install on the Pi (one time, ~10 minutes)
+
+Needs internet during install (Ethernet or Wi-Fi). In a terminal on the Pi:
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip build-essential
+git clone <your repo URL> attendanceTaker
+cd attendanceTaker
+./install.sh
 ```
 
-## 2) Start app manually
+`install.sh` is safe to re-run (do so after every `git pull`). It:
 
-From project root:
+1. installs build tools + Python venv support,
+2. builds the Mercury API `readasync` reader binary,
+3. creates `.venv` and installs Python dependencies,
+4. installs a udev rule so the reader always appears as `/dev/hecto`, and adds you to `dialout`,
+5. creates the Wi-Fi hotspot **AttendancePi** (password `attendance123` — override with
+   `HOTSPOT_SSID=... HOTSPOT_PASS=... ./install.sh`),
+6. puts the **Attendance Kiosk** icon on the desktop,
+7. disables screen blanking.
+
+> Installing over SSH-via-Wi-Fi? Use `SKIP_HOTSPOT=1 ./install.sh` — creating the hotspot
+> switches wlan0 and would drop your connection. Create it later by re-running plain
+> `./install.sh` from the Pi's own screen.
+
+Then **log out and back in once** (dialout group), plug in the M7E Hecto over USB,
+and double-click **Attendance Kiosk**.
+
+## Day-to-day use
+
+1. Double-click **Attendance Kiosk** → full-screen Home with a **Start** button.
+2. Tap **Start** → live screen. Every scanned tag appears once, newest on top.
+3. **Pause/Resume** optional; **Stop** (with confirm) ends the session.
+4. Back on Home, tap **Export** → shows the download instructions + QR code.
+5. On your phone: join Wi-Fi **AttendancePi** → open `http://10.42.0.1:8080/exports`
+   (or scan the QR) → **Download** the session CSV.
+
+CSV columns: `session_id, session_name, epc, scanned_at`
+(+ `student_number, name` when a roster is present, see below).
+
+## Boot straight into the kiosk (optional)
+
+When you want the Pi to power on directly into the app:
 
 ```bash
-chmod +x run-attendance-kiosk.sh
-./run-attendance-kiosk.sh
+./enable-autostart.sh      # then: sudo reboot
+./enable-autostart.sh --off   # go back to the desktop icon
 ```
 
-Open:
-- On Pi touchscreen: `http://localhost:8080`
-- On phone (same Wi-Fi): `http://<PI_IP>:8080`
+This installs a systemd service for the server (auto-restarts if it ever crashes)
+plus a browser autostart entry.
 
-## 3) Configure reader defaults (optional)
+## Optional: student roster
 
-```bash
-export ATTENDANCE_URI="tmr:///dev/ttyUSB0"
-export ATTENDANCE_ANTENNA="1"
-export ATTENDANCE_READ_POWER="1900"
-export ATTENDANCE_PORT="8080"
-./run-attendance-kiosk.sh
+Create `data/roster.csv` to show names instead of raw tag IDs:
+
+```csv
+epc,student_number,name
+E28068940000501234567890,u21000001,Alice Example
 ```
 
-## 4) Optional email export setup
+EPCs must be uppercase hex exactly as shown in the live list. Restart the app after editing.
 
-Set SMTP environment variables before launching:
+## Configuration
 
-```bash
-export ATTENDANCE_SMTP_HOST="smtp.gmail.com"
-export ATTENDANCE_SMTP_PORT="587"
-export ATTENDANCE_SMTP_USER="your@email.com"
-export ATTENDANCE_SMTP_PASS="app_password"
-export ATTENDANCE_SMTP_FROM="your@email.com"
-export ATTENDANCE_SMTP_TLS="1"
+Defaults work out of the box. Override via the on-screen **Settings** drawer (per-session)
+or environment variables / flags (persistent):
+
+| Setting | Env var | Default |
+|---|---|---|
+| Reader URI | `ATTENDANCE_URI` | `tmr:///dev/hecto` (auto-falls back to ttyUSB0/ttyACM0…) |
+| Antenna | `ATTENDANCE_ANTENNA` | `1` |
+| Read power (cdBm) | `ATTENDANCE_READ_POWER` | `1900` (M7E max 2700 — higher = more range + more current) |
+| Port | `ATTENDANCE_PORT` | `8080` |
+| Mock reader | `ATTENDANCE_MOCK=1` or `--mock` | off |
+
+## Development on Windows (no hardware)
+
+```powershell
+.\run-attendance-kiosk.ps1 -Mock     # then open http://localhost:8080
+python -m pytest tests\ -q           # unit tests
 ```
 
-Then use "Send Email" in UI.
+The mock reader emits repeating fake tags so the scan-once behaviour is visible.
 
-## 5) Kiosk mode autostart (Chromium)
+## Troubleshooting
 
-Create autostart file:
-
-```bash
-mkdir -p ~/.config/autostart
-cat > ~/.config/autostart/attendance-kiosk.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Attendance Kiosk
-Exec=sh -c "cd /home/pi/attendanceTaker && ./run-attendance-kiosk.sh & sleep 5 && chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:8080"
-X-GNOME-Autostart-enabled=true
-EOF
-```
-
-Replace `/home/pi/attendanceTaker` with your real project path.
-
-## 6) CSV location
-
-Exported files are saved in:
-
-```text
-exports/
-```
-
-And can be downloaded via app endpoint:
-
-```text
-/downloads/<filename>
-```
+- **"Reader not found" on Home** — check the USB cable; `ls -l /dev/hecto` should exist.
+  If your USB-serial chip isn't matched, see `deploy/99-hecto.rules` (find IDs with `lsusb`).
+- **Reader drops at high read power** — the module can brown out over USB. Lower the read
+  power in Settings, use the official 27 W PSU, and add `usb_max_current_enable=1` to
+  `/boot/firmware/config.txt`.
+- **Need internet on the Pi while the hotspot exists** — `sudo nmcli connection down
+  attendance-hotspot`, connect to normal Wi-Fi (or just plug Ethernet), and
+  `sudo nmcli connection up attendance-hotspot` when done.
+- **Server logs** — `data/app.log` (desktop icon runs) or
+  `journalctl -u attendance-kiosk -f` (autostart mode).
+- **Test reads without the app** — `./run-hecto-live.sh` prints raw reads in a terminal.
