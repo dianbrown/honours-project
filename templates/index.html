@@ -15,8 +15,18 @@
       <div id="readerPill" class="pill"><span class="dot"></span><span class="pill-text">Checking reader…</span></div>
     </header>
     <main class="home-main">
-      <button id="startBtn" class="btn btn-primary btn-hero" disabled>Start</button>
-      <button id="exportBtn" class="btn btn-secondary btn-big" disabled>Export</button>
+      <button id="startBtn" class="btn btn-primary btn-hero" disabled>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12.5 8.5 16 12l-3.5 3.5"/>
+        </svg>
+        <span>Start</span>
+      </button>
+      <button id="exportBtn" class="btn btn-secondary btn-big" disabled>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 15V4"/><path d="M8.5 7.5 12 4l3.5 3.5"/><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>
+        </svg>
+        <span>Export</span>
+      </button>
       <p id="exportCaption" class="caption">No sessions yet</p>
     </main>
     <footer class="home-footer">

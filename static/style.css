@@ -1,18 +1,20 @@
-/* Attendance kiosk — flat, dark, touch-first. Designed for 1280x720 (Pi Touch Display 2). */
+/* Attendance kiosk — flat, light, touch-first. Designed for 1280x720 (Pi Touch Display 2). */
 
 :root {
-  --bg: #0f1115;
-  --surface: #171b21;
-  --surface-2: #1e242c;
-  --border: #2a313b;
-  --text: #e7eaee;
-  --dim: #98a2ae;
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --border: #e3e5e8;
+  --border-strong: #d5d8dc;
+  --text: #1b1f24;
+  --dim: #6b7280;
+  --disabled: #b3bac2;
+  --disabled-bg: #fafafa;
   --accent: #3b82f6;
   --accent-press: #2f6cd0;
   --danger: #e5484d;
   --danger-press: #c33b40;
-  --ok: #34c07a;
-  --warn: #e0a63a;
+  --ok: #16a34a;
+  --warn: #b45309;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -62,7 +64,7 @@ body.kiosk {
   padding: 10px 16px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--bg);
   font-size: 15px;
   color: var(--dim);
 }
@@ -77,9 +79,13 @@ body.kiosk {
 /* ---- buttons ---- */
 
 .btn {
-  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   font-weight: 600;
@@ -89,7 +95,8 @@ body.kiosk {
   height: 64px;
   font-size: 20px;
 }
-.btn:active { background: var(--border); }
+.btn svg { flex: none; }
+.btn:active { background: #ececec; }
 
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:active { background: var(--accent-press); border-color: var(--accent-press); }
@@ -97,12 +104,12 @@ body.kiosk {
 .btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn-danger:active { background: var(--danger-press); border-color: var(--danger-press); }
 
-.btn-secondary { background: var(--surface-2); }
+.btn-secondary { background: var(--surface); }
 
 .btn:disabled, .btn:disabled:active {
-  background: var(--surface-2);
+  background: var(--disabled-bg);
   border-color: var(--border);
-  color: #55606c;
+  color: var(--disabled);
   cursor: default;
 }
 
@@ -118,8 +125,8 @@ body.kiosk {
   padding: 24px;
 }
 
-.btn-hero { width: min(560px, 90vw); height: 136px; font-size: 34px; }
-.btn-big { width: min(560px, 90vw); height: 88px; font-size: 24px; }
+.btn-hero { width: min(560px, 90vw); height: 128px; font-size: 32px; gap: 16px; }
+.btn-big { width: min(560px, 90vw); height: 84px; font-size: 22px; }
 
 .caption { color: var(--dim); font-size: 16px; min-height: 20px; }
 
@@ -162,15 +169,15 @@ body.kiosk {
 .paused-banner {
   flex: none;
   padding: 12px 24px;
-  background: #2e2712;
+  background: #fdf3dd;
   color: var(--warn);
-  border-bottom: 1px solid #4a3d17;
+  border-bottom: 1px solid #f0dfb6;
   font-size: 16px;
   font-weight: 600;
   text-align: center;
 }
 
-.list-wrap { flex: 1; overflow-y: auto; position: relative; }
+.list-wrap { flex: 1; overflow-y: auto; position: relative; background: var(--surface); }
 
 .tag-list { list-style: none; }
 
@@ -189,7 +196,7 @@ body.kiosk {
 .tag-row .row-time { color: var(--dim); font-size: 16px; font-variant-numeric: tabular-nums; }
 
 @keyframes rowflash {
-  0% { background: rgba(59, 130, 246, 0.22); }
+  0% { background: rgba(59, 130, 246, 0.14); }
   100% { background: transparent; }
 }
 .tag-row.new { animation: rowflash 1.2s ease-out 1; }
@@ -212,7 +219,7 @@ body.kiosk {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(4, 6, 9, 0.6);
+  background: rgba(27, 31, 36, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -256,6 +263,7 @@ body.kiosk {
 .qr-box {
   flex: none;
   background: #fff;
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
   display: flex;
@@ -284,8 +292,8 @@ body.kiosk {
 
 .field { display: flex; flex-direction: column; gap: 8px; font-size: 15px; color: var(--dim); }
 .field input {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: 10px;
   color: var(--text);
   font: inherit;
@@ -320,14 +328,15 @@ body.kiosk {
   left: 50%;
   bottom: 28px;
   transform: translateX(-50%);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-left: 4px solid var(--danger);
   border-radius: 10px;
   padding: 14px 20px;
   font-size: 16px;
   max-width: 90vw;
   z-index: 40;
+  box-shadow: 0 2px 8px rgba(27, 31, 36, 0.08);
 }
 
 /* ---- exports page (phone-facing) ---- */
